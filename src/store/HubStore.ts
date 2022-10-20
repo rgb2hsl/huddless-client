@@ -32,6 +32,7 @@ export class HubStore {
     if (!this.root.identityStore.identityDigest) return undefined;
 
     let me: Person;
+
     const meOrNot: Person | undefined = this.state.persons.find(
       (p) => p.identity === this.root.identityStore.identityDigest
     );
@@ -41,9 +42,9 @@ export class HubStore {
         identity: this.root.identityStore.identityDigest,
         title: "",
       };
+      this.state.persons.push(me);
     } else {
       me = meOrNot;
-      this.state.persons.push(me);
     }
 
     return me;
