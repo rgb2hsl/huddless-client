@@ -45,7 +45,7 @@ export const RootRoute = observer(() => {
               </Center>
               <BlocksRow>
                 <StatusBlock />
-                <SigcheckBlock />
+                {store.identityStore.keyPair ? <SigcheckBlock /> : null}
               </BlocksRow>
             </LayoutDefault>
           </>
