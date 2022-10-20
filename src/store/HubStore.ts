@@ -4,6 +4,7 @@ import { HubState, HubStateSchema, Person } from "../types/HubState";
 import { sign } from "../helpers/sign";
 import { PostBody, PostBodyUnsigned } from "../types/PostBody";
 import { digest } from "../helpers/digest";
+import identity from "../helpers/identity";
 
 export class HubStore {
   constructor(private root: RootStore) {
@@ -20,8 +21,11 @@ export class HubStore {
 
   message = "";
 
-  setNickname(nickname: string) {
+  async setNickname(nickname: string) {
     if (this.me) this.me.title = nickname;
+    else if (this.root.identityStore.keyPair) {
+      await this.sendNickname(nickname);
+    }
   }
 
   get nickname() {
@@ -31,23 +35,16 @@ export class HubStore {
   get me(): Person | undefined {
     if (!this.root.identityStore.identityDigest) return undefined;
 
-    let me: Person;
-
     const meOrNot: Person | undefined = this.state.persons.find(
       (p) => p.identity === this.root.identityStore.identityDigest
     );
 
     if (!meOrNot) {
-      me = {
-        identity: this.root.identityStore.identityDigest,
-        title: "",
-      };
-      this.state.persons.push(me);
+      this.sendNickname("");
+      return undefined;
     } else {
-      me = meOrNot;
+      return meOrNot;
     }
-
-    return me;
   }
 
   state: HubState = {
@@ -55,19 +52,25 @@ export class HubStore {
     messages: [],
   };
 
-  async sendNickname() {
+  async sendNickname(nickname?: string) {
     if (
       !this.root.identityStore.keyPair ||
-      !this.root.identityStore.identityDigest ||
-      !this.me
+      !this.root.identityStore.identityDigest
     )
       throw "[HubStore] No keypair";
     if (!this.ws) throw "[HubStore] No websocket open";
 
     try {
+      const person: Person = this.me || {
+        identity:
+          this.root.identityStore.identityDigest ||
+          (await identity(this.root.identityStore.keyPair.publicKey)),
+        title: nickname || "",
+      };
+
       const postBodyUnsigned: PostBodyUnsigned = {
         type: "PERSON",
-        body: JSON.stringify(this.me),
+        body: JSON.stringify(this.me || person),
         publicKey: await crypto.subtle.exportKey(
           "jwk",
           this.root.identityStore.keyPair?.publicKey
@@ -96,6 +99,9 @@ export class HubStore {
     if (!this.message.trim()) return;
 
     try {
+      // send empty nickname
+      await this.sendNickname("");
+
       const postBodyUnsigned: PostBodyUnsigned = {
         type: "MESSAGE",
         body: this.message,

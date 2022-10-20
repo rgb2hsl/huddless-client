@@ -73,10 +73,11 @@ export const HubRoute = observer(() => {
       runInAction(() => {
         const nickname = e.target.value.replace("\n", "").trim();
 
-        runInAction(() =>
-          store.hubStore.setNickname(
-            nickname.length <= 20 ? nickname : nickname.substring(0, 19)
-          )
+        runInAction(
+          async () =>
+            await store.hubStore.setNickname(
+              nickname.length <= 20 ? nickname : nickname.substring(0, 19)
+            )
         );
       });
     },
