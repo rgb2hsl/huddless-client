@@ -35,16 +35,9 @@ export class HubStore {
   get me(): Person | undefined {
     if (!this.root.identityStore.identityDigest) return undefined;
 
-    const meOrNot: Person | undefined = this.state.persons.find(
+    return this.state.persons.find(
       (p) => p.identity === this.root.identityStore.identityDigest
     );
-
-    if (!meOrNot) {
-      this.sendNickname("");
-      return undefined;
-    } else {
-      return meOrNot;
-    }
   }
 
   state: HubState = {
@@ -100,7 +93,7 @@ export class HubStore {
 
     try {
       // send empty nickname
-      await this.sendNickname("");
+      if (!this.me) await this.sendNickname("");
 
       const postBodyUnsigned: PostBodyUnsigned = {
         type: "MESSAGE",
