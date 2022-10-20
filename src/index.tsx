@@ -1,19 +1,57 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import {
+  IdentityDelete,
+  IdentityGenerate,
+  IdentityLoad,
+  Index,
+  RootError,
+  RootRoute,
+} from "./routes/Root/RootRoute";
+import { GlobalStyle } from "./components/GlobalStyle";
+import { rootStore, RootStoreContext } from "./store/RootStore";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { HubRoute } from "./routes/Root/HubRoute";
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <RootRoute />,
+    errorElement: <RootError />,
+    children: [
+      {
+        path: "identity/generate",
+        element: <IdentityGenerate />,
+      },
+      {
+        path: "identity/delete",
+        element: <IdentityDelete />,
+      },
+      {
+        path: "identity/load",
+        element: <IdentityLoad />,
+      },
+      {
+        path: "/",
+        element: <Index />,
+      },
+    ],
+  },
+  {
+    path: "/hub/",
+    element: <HubRoute />,
+  },
+]);
 
 const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  document.getElementById("root") as HTMLElement
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+root.render(
+  <React.StrictMode>
+    <RootStoreContext.Provider value={rootStore}>
+      <GlobalStyle />
+      <RouterProvider router={router} />
+    </RootStoreContext.Provider>
+  </React.StrictMode>
+);
