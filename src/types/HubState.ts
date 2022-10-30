@@ -22,10 +22,16 @@ export const MessageSchema = yup.object().shape({
   date: yup.date().required(),
 });
 
-export interface HubState {
-  persons: Person[];
-  messages: Message[];
+export interface SystemMessage {
+  identity?: string;
+  body: string;
+  date: Date;
 }
+
+export const SystemMessageSchema = yup.object().shape({
+  body: yup.string().required(),
+  date: yup.date().required(),
+});
 
 export const HubStateSchema = yup.object().shape({
   persons: yup.array().of(PersonSchema).required(),

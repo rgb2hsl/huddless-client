@@ -26,7 +26,7 @@ export const HubRoute = observer(() => {
 
   useEffect(() => {
     scrollAnchor.current?.scrollIntoView();
-  }, [store.hubStore.state.messages]);
+  }, [store.hubStore.messages.length]);
 
   useEffect(() => {
     store.hubStore.connect();
@@ -59,9 +59,7 @@ export const HubRoute = observer(() => {
       if (e.key === "Enter") {
         e.preventDefault();
         if (store.hubStore.online) {
-          store.hubStore
-            .sendNickname()
-            .then(() => runInAction(() => (store.hubStore.message = "")));
+          store.hubStore.sendNickname();
         }
       }
     },
@@ -70,18 +68,13 @@ export const HubRoute = observer(() => {
 
   const handleNicknameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      runInAction(() => {
-        const nickname = e.target.value.replace("\n", "").trim();
+      const nickname = e.target.value.replace("\n", "").trim();
 
-        runInAction(
-          async () =>
-            await store.hubStore.setNickname(
-              nickname.length <= 20 ? nickname : nickname.substring(0, 19)
-            )
-        );
-      });
+      store.hubStore.setNickname(
+        nickname.length <= 20 ? nickname : nickname.substring(0, 19)
+      );
     },
-    [store, store.hubStore]
+    [store, store.hubStore, store.hubStore.nickname]
   );
 
   const handleSend = useCallback(() => {
@@ -94,23 +87,24 @@ export const HubRoute = observer(() => {
     <LayoutHub>
       <MsgLogContainer>
         <MsgLog>
-          {store.hubStore.state.messages.map((msg, i, n) => {
+          {store.hubStore.messages.map((msg, i, n) => {
             const first = !n[i - 1] || n[i - 1].identity !== msg.identity;
             const last = !n[i + 1] || n[i + 1].identity !== msg.identity;
             const person: Person | undefined = first
-              ? store.hubStore.state.persons.find(
-                  (p) => p.identity === msg.identity
-                )
+              ? store.hubStore.persons.find((p) => p.identity === msg.identity)
               : undefined;
-            const me = msg.identity === store.hubStore.me?.identity;
+
+            const me = msg.identity === store.identityStore.identityDigest;
 
             return (
               <MsgBuble key={i}>
                 {first ? (
                   <>
-                    <MsgPerson me={me}>
-                      {person?.title || msg.identity.substring(0, 6)}
-                    </MsgPerson>
+                    {msg.identity ? (
+                      <MsgPerson me={me}>
+                        {person?.title || msg.identity.substring(0, 6)}
+                      </MsgPerson>
+                    ) : null}
                     <MsgDate me={me}>{`${msg.date}`}</MsgDate>
                   </>
                 ) : null}

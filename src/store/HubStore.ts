@@ -1,10 +1,23 @@
-import { makeAutoObservable, runInAction } from "mobx";
+import {
+  IObservableArray,
+  makeAutoObservable,
+  observable,
+  runInAction,
+} from "mobx";
 import { RootStore } from "./RootStore";
-import { HubState, HubStateSchema, Person } from "../types/HubState";
+import { Message, Person, SystemMessage } from "../types/HubState";
 import { sign } from "../helpers/sign";
-import { PostBody, PostBodyUnsigned } from "../types/PostBody";
-import { digest } from "../helpers/digest";
-import identity from "../helpers/identity";
+import { PersonHandshake, PostBody, PostBodyUnsigned } from "../types/PostBody";
+import {
+  MessagePayload,
+  MessagePayloadSchema,
+  Payload,
+  PayloadSchema,
+  PersonPayloadSchema,
+  PersonsPayload,
+  SystemMessagePayload,
+  SystemMessagePayloadSchema,
+} from "../types/Messages";
 
 export class HubStore {
   constructor(private root: RootStore) {
@@ -21,29 +34,16 @@ export class HubStore {
 
   message = "";
 
-  async setNickname(nickname: string) {
-    if (this.me) this.me.title = nickname;
-    else if (this.root.identityStore.keyPair) {
-      await this.sendNickname(nickname);
-    }
+  setNickname(nickname: string) {
+    this.nickname = nickname;
   }
 
-  get nickname() {
-    return this.me?.title || "";
-  }
+  nickname = "";
 
-  get me(): Person | undefined {
-    if (!this.root.identityStore.identityDigest) return undefined;
-
-    return this.state.persons.find(
-      (p) => p.identity === this.root.identityStore.identityDigest
-    );
-  }
-
-  state: HubState = {
-    persons: [],
-    messages: [],
-  };
+  persons: IObservableArray<Person> = observable<Person>([]);
+  messages: IObservableArray<Message | SystemMessage> = observable<
+    Message | SystemMessage
+  >([]);
 
   async sendNickname(nickname?: string) {
     if (
@@ -53,17 +53,19 @@ export class HubStore {
       throw "[HubStore] No keypair";
     if (!this.ws) throw "[HubStore] No websocket open";
 
+    if (!nickname) {
+      nickname = this.nickname;
+    }
+
     try {
-      const person: Person = this.me || {
-        identity:
-          this.root.identityStore.identityDigest ||
-          (await identity(this.root.identityStore.keyPair.publicKey)),
-        title: nickname || "",
+      const person: Person = {
+        identity: this.root.identityStore.identityDigest,
+        title: nickname,
       };
 
       const postBodyUnsigned: PostBodyUnsigned = {
         type: "PERSON",
-        body: JSON.stringify(this.me || person),
+        body: JSON.stringify(person),
         publicKey: await crypto.subtle.exportKey(
           "jwk",
           this.root.identityStore.keyPair?.publicKey
@@ -92,9 +94,6 @@ export class HubStore {
     if (!this.message.trim()) return;
 
     try {
-      // send empty nickname
-      if (!this.me) await this.sendNickname("");
-
       const postBodyUnsigned: PostBodyUnsigned = {
         type: "MESSAGE",
         body: this.message,
@@ -128,9 +127,12 @@ export class HubStore {
   }
 
   async connect(): Promise<void> {
-    if (!this.root.identityStore.keyPair) {
+    if (
+      !this.root.identityStore.keyPair ||
+      !this.root.identityStore.identityDigest
+    ) {
       this.error = true;
-      console.error("[HubStore] No keypair");
+      console.error("[HubStore] No keypair or identityDigest");
       return;
     }
 
@@ -148,11 +150,24 @@ export class HubStore {
           this.connecting = false;
         });
 
-        if (!this.root.identityStore.keyPair || !this.ws) return;
+        if (
+          !this.root.identityStore.keyPair ||
+          !this.ws ||
+          !this.root.identityStore.identityDigest
+        ) {
+          console.error(
+            "[HubStore][WS open handler] No keypair or identityDigest"
+          );
+          return;
+        }
 
-        const handshakeUnsigned: PostBodyUnsigned = {
-          type: "HANDSHAKE",
-          body: await digest(`${Date.now()}`),
+        const personHandshake: PersonHandshake = {
+          identity: this.root.identityStore.identityDigest,
+        };
+
+        const personUnsigned: PostBodyUnsigned = {
+          type: "PERSON",
+          body: JSON.stringify(personHandshake),
           publicKey: await crypto.subtle.exportKey(
             "jwk",
             this.root.identityStore.keyPair?.publicKey
@@ -160,12 +175,12 @@ export class HubStore {
         };
 
         const signature = await sign(
-          JSON.stringify(handshakeUnsigned),
+          JSON.stringify(personUnsigned),
           this.root.identityStore.keyPair
         );
 
         const handshake: PostBody = {
-          ...handshakeUnsigned,
+          ...personUnsigned,
           signature: signature,
         };
 
@@ -182,14 +197,85 @@ export class HubStore {
       });
 
       ws.addEventListener("message", async ({ data }) => {
-        try {
-          const obj = JSON.parse(data);
-          await HubStateSchema.validate(obj);
-          const hubState = obj as HubState;
+        let obj;
 
-          runInAction(() => (this.state = hubState));
+        try {
+          obj = JSON.parse(data);
         } catch (e) {
-          console.error(e);
+          console.error(
+            "[HubStore][WS message handler] Failed to parse incoming message"
+          );
+          return;
+        }
+
+        try {
+          await PayloadSchema.validate(obj);
+        } catch {
+          console.error(
+            "[HubStore][WS message handler] Incoming message is not a valid payload",
+            obj
+          );
+          return;
+        }
+
+        const payload: Payload = obj as Payload;
+
+        /** Switch payload type */
+
+        if (payload.type === "PERSONS") {
+          try {
+            PersonPayloadSchema.validate(payload);
+          } catch {
+            console.error(
+              "[HubStore][WS message handler] Incoming message is invalid persons payload"
+            );
+            return;
+          }
+
+          runInAction(() => {
+            const personsPayload = payload as PersonsPayload;
+
+            try {
+              this.persons.replace(personsPayload.body);
+            } catch {
+              console.error(
+                "[HubStore][WS message handler] An error occured during persons payload processing"
+              );
+              return;
+            }
+
+            const me = personsPayload.body.find(
+              (p) => p.identity === this.root.identityStore.identityDigest
+            );
+
+            if (me) {
+              this.nickname = me.title; // update my nickname with saved one
+            }
+          });
+        } else if (payload.type === "MESSAGE") {
+          try {
+            MessagePayloadSchema.validate(payload);
+          } catch {
+            console.error(
+              "[HubStore][WS message handler] Incoming message is invalid message payload"
+            );
+            return;
+          }
+
+          const messagePayload = payload as MessagePayload;
+          this.messages.push(messagePayload.body);
+        } else if (payload.type === "SYSTEM_MESSAGE") {
+          try {
+            SystemMessagePayloadSchema.validate(payload);
+          } catch {
+            console.error(
+              "[HubStore][WS message handler] Incoming message is invalid system message payload"
+            );
+            return;
+          }
+
+          const systemMessagePayload = payload as SystemMessagePayload;
+          this.messages.push(systemMessagePayload.body);
         }
       });
 

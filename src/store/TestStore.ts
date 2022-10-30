@@ -3,7 +3,6 @@ import axios, { AxiosError } from "axios";
 import { RootStore } from "./RootStore";
 import { sign } from "../helpers/sign";
 import { PostBody, PostBodyUnsigned } from "../types/PostBody";
-import { digest } from "../helpers/digest";
 
 export class TestStore {
   constructor(private root: RootStore) {
@@ -31,8 +30,8 @@ export class TestStore {
 
     try {
       const handshakeUnsigned: PostBodyUnsigned = {
-        type: "HANDSHAKE",
-        body: await digest(`${Date.now()}`),
+        type: "PERSON",
+        body: "{}",
         publicKey: await crypto.subtle.exportKey(
           "jwk",
           this.root.identityStore.keyPair?.publicKey
