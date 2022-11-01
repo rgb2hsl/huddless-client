@@ -7,6 +7,10 @@ export const BlocksRow = styled.div`
   align-items: center;
   justify-content: center;
 
+  @media (max-width: 1023px) {
+    flex-direction: column;
+  }
+
   & > ${Block} {
     margin-left: 16px;
     margin-right: 16px;

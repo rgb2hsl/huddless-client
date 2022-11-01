@@ -3,7 +3,13 @@ import { observer } from "mobx-react-lite";
 import { useStore } from "../../store/RootStore";
 import { useRedirectIfNotLoaded } from "../../hooks/useRedirectToRoot";
 import { runInAction } from "mobx";
-import { MsgPanel } from "../../components/MsgPanel/MsgPanel";
+import {
+  MsgPanel,
+  MsgPanelControls,
+  MsgPanelMessage,
+  MsgPanelNickname,
+  MsgPanelStatus,
+} from "../../components/MsgPanel/MsgPanel";
 import { Button } from "../../components/LinkButton";
 import { LayoutHub } from "../../components/Layout/LayoutHub";
 import { MsgInput, MsgInputSimple } from "../../components/MsgPanel/MsgInput";
@@ -120,22 +126,33 @@ export const HubRoute = observer(() => {
 
       <MsgPanelContainer>
         <MsgPanel>
-          <MsgInputSimple
-            value={store.hubStore.nickname}
-            onChange={handleNicknameChange}
-            onKeyDown={handleNicknameKeyDown}
-            placeholder={"Nickname"}
-          />
-          <MsgInput
-            value={store.hubStore.message}
-            onChange={handleMessageChange}
-            onKeyDown={handleMessageKeyDown}
-            placeholder={"Message"}
-          />
-          <Button onClick={handleSend} disabled={!store.hubStore.online}>
-            Send
-          </Button>
-          <MsgStatus store={store} />
+          <MsgPanelNickname>
+            <MsgInputSimple
+              value={store.hubStore.nickname}
+              onChange={handleNicknameChange}
+              onKeyDown={handleNicknameKeyDown}
+              placeholder={"Nickname"}
+            />
+          </MsgPanelNickname>
+
+          <MsgPanelMessage>
+            <MsgInput
+              value={store.hubStore.message}
+              onChange={handleMessageChange}
+              onKeyDown={handleMessageKeyDown}
+              placeholder={"Message"}
+            />
+          </MsgPanelMessage>
+
+          <MsgPanelControls>
+            <Button onClick={handleSend} disabled={!store.hubStore.online}>
+              Send
+            </Button>
+          </MsgPanelControls>
+
+          <MsgPanelStatus>
+            <MsgStatus store={store} />
+          </MsgPanelStatus>
         </MsgPanel>
       </MsgPanelContainer>
     </LayoutHub>

@@ -8,6 +8,7 @@ import { Spinner } from "../Spinner";
 
 const MsgStatusContainer = styled.div`
   margin: 0 16px;
+  font-size: 12px;
 `;
 
 export const MsgStatus: React.FC<{

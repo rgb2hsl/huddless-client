@@ -8,6 +8,11 @@ export const Wrapper = styled.div`
   height: 100%;
 
   padding: 32px;
+
+  @media (max-width: 1023px) {
+    padding: 16px;
+  }
+
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;

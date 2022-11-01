@@ -17,8 +17,10 @@ const style = css`
 
 export const MsgInput = styled(TextareaAutosize)`
   ${style};
+  width: 100%;
 `;
 
 export const MsgInputSimple = styled.input`
   ${style};
+  width: 100%;
 `;

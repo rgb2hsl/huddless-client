@@ -16,6 +16,7 @@ import { AnimatedBG } from "../../components/AnimatedBG";
 import { BlocksRow } from "../../components/BlocksRow";
 import { SigcheckBlock } from "../../components/SigcheckBlock/SigcheckBlock";
 import { useRedirectIfLoaded } from "../../hooks/useRedirectToRoot";
+import { Elipsis } from "../../components/Elipsis";
 
 export const RootRoute = observer(() => {
   const match = useMatch("/");
@@ -64,7 +65,9 @@ export const Index = observer(() => {
       {store.identityStore.keyPair ? (
         <>
           <p>
-            <Info>Identity: {store.identityStore.identityDigest}</Info>
+            <Elipsis>
+              <Info>Identity: {store.identityStore.identityDigest}</Info>
+            </Elipsis>
           </p>
           <p>We're all set.</p>
           <p>
